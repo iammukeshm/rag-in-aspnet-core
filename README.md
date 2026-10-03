@@ -34,10 +34,9 @@ There is also a `--skip-verify` flag that gets past the cosign problem, but it t
 Keys live in user secrets, never in `appsettings.json`.
 
 ```bash
-cd RagChat.Api
-dotnet user-secrets set "GoodMem:ApiKey" "<your GoodMem key>"
-dotnet user-secrets set "GoodMem:OpenAiApiKey" "<your OpenAI key>"
-dotnet user-secrets set "GoodMem:VoyageApiKey" "<your Voyage key>"
+dotnet user-secrets set "GoodMem:ApiKey" "<your GoodMem key>" --project RagChat.Api
+dotnet user-secrets set "GoodMem:OpenAiApiKey" "<your OpenAI key>" --project RagChat.Api
+dotnet user-secrets set "GoodMem:VoyageApiKey" "<your Voyage key>" --project RagChat.Api
 ```
 
 Leave the Voyage key out if you do not want the reranker. Everything else still works.
@@ -103,12 +102,11 @@ A Voyage account without a payment method is rate limited, and the eval will fai
 The API reads the server address from `GoodMem:BaseUrl`. It defaults to `http://localhost:8080` in `appsettings.json`. To run against a GoodMem Cloud instance, set the base URL and the key of that instance, and leave everything else as it is.
 
 ```bash
-cd RagChat.Api
-dotnet user-secrets set "GoodMem:BaseUrl" "https://<your-instance>.app.goodmem.ai"
-dotnet user-secrets set "GoodMem:ApiKey" "<your Cloud API key>"
+dotnet user-secrets set "GoodMem:BaseUrl" "https://<your-instance>.app.goodmem.ai" --project RagChat.Api
+dotnet user-secrets set "GoodMem:ApiKey" "<your Cloud API key>" --project RagChat.Api
 ```
 
-To go back to the local server, remove the override with `dotnet user-secrets remove "GoodMem:BaseUrl"` and set the local key again.
+To go back to the local server, remove the override with `dotnet user-secrets remove "GoodMem:BaseUrl" --project RagChat.Api` and set the local key again.
 
 ## Endpoints
 
