@@ -24,6 +24,7 @@ public sealed class GoodMemOptions
 
     public string RerankModel { get; set; } = "rerank-2.5";
 
-    // The SDK waits forever by default, so always set a timeout.
+    // The SDK waits forever by default, so always set a timeout. On a streamed call this only covers
+    // the wait for the response headers, so ChatService also uses it as the deadline for a whole chat request.
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
 }

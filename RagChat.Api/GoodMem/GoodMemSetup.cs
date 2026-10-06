@@ -69,7 +69,7 @@ public sealed class GoodMemSetup(
     {
         var folder = Path.Combine(environment.ContentRootPath, "Documents");
         var pending = new List<string>();
-        var skipped = 0;
+        var existing = new List<string>();
 
         foreach (var path in Directory.EnumerateFiles(folder, "*.md"))
         {
@@ -98,14 +98,17 @@ public sealed class GoodMemSetup(
             }
             catch (ConflictException)
             {
-                skipped++;
+                // The ID is already taken. That alone does not say the earlier ingestion finished,
+                // so the existing memory is checked below before it counts as skipped.
+                existing.Add(DocumentId(slug));
             }
         }
 
         // Ingestion is asynchronous. GoodMem accepts the file right away, then chunks
         // and embeds it in the background, so wait until every document is searchable.
-        await Task.WhenAll(pending.Select(id => WaitUntilProcessedAsync(id, cancellationToken)));
-        return (pending.Count, skipped);
+        // This throws if any document, new or existing, ended in the FAILED state.
+        await Task.WhenAll(pending.Concat(existing).Select(id => WaitUntilProcessedAsync(id, cancellationToken)));
+        return (pending.Count, existing.Count);
     }
 
     public async Task WaitUntilProcessedAsync(string memoryId, CancellationToken cancellationToken)

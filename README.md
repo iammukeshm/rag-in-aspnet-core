@@ -55,7 +55,9 @@ The API listens on `http://localhost:5162`. The Scalar API reference is at `http
 curl -X POST http://localhost:5162/api/setup
 ```
 
-This registers the embedder, the LLM and the reranker, creates the space, and ingests every Markdown file in `RagChat.Api/Documents`. It is safe to run again: every resource has a fixed ID, so a second run skips what already exists.
+This registers the embedder, the LLM and the reranker, creates the space, and ingests every Markdown file in `RagChat.Api/Documents`. It is safe to run again: every resource has a fixed ID, so a second run skips what already exists, after checking that each existing document finished processing.
+
+The setup only creates what is missing. If you edit a Markdown file, or change a model name or a provider key, a second run will not pick up the change. Delete that memory or update that resource in GoodMem first.
 
 ## 5. Ask a question
 

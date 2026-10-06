@@ -4,6 +4,7 @@ using System.Text.Json;
 using Goodmem.Client;
 using Goodmem.Client.Api;
 using Goodmem.Client.Models;
+using Microsoft.Extensions.Options;
 
 namespace RagChat.Api.GoodMem;
 
@@ -11,20 +12,23 @@ public sealed record Citation(string Title, string? Url, string Excerpt);
 
 public sealed record ChatAnswer(string Answer, bool Reranked, IReadOnlyList<Citation> Citations, long ElapsedMs);
 
-public sealed class ChatService(GoodmemClient client, ILogger<ChatService> logger)
+public sealed class ChatService(GoodmemClient client, IOptions<GoodMemOptions> options, ILogger<ChatService> logger)
 {
-    // The simple RetrieveAsync overload has no Filter property, so a multi-user app has to
-    // build the raw request. The raw request names its post-processor by this class name.
+    // The simple RetrieveAsync overload has no Filter and no Context. This sample keeps the documents
+    // and every user's turns in one space, so it needs both and builds the raw request.
+    // The raw request names its post-processor by this class name.
     private const string ChatPostProcessor = "com.goodmem.retrieval.postprocess.ChatPostProcessorFactory";
     private const int RecentTurns = 6;
 
     // GoodMem's default system prompt tells the model to stick strictly to the retrieved data,
     // so it ignores the conversation passed in Context. These two prompts let it use both.
+    // The search returns articles and this user's older turns, so the prompt names both.
     private const string SystemPrompt = """
-        You answer questions for a .NET developer using two sources: the retrieved documents and the previous conversation with this user.
-        - Use the previous conversation for anything the user said or asked earlier.
-        - The retrieved documents are articles, never things the user said. If the user asks about something they told you and it is not in the previous conversation, say that you have no record of it.
-        - Use the retrieved documents for technical facts, and keep specific details, numbers and code exact.
+        You answer questions for a .NET developer using two sources: the previous conversation with this user and the retrieved content.
+        - The retrieved content has two kinds of entries: technical articles, and older conversation records of this same user. A conversation record has lines that start with "User asked:" and "Assistant answered:".
+        - For anything the user said or asked earlier, use the previous conversation and the "User asked:" lines of the older conversation records. For anything you answered earlier, use the "Assistant answered:" lines.
+        - Never present an example from an article as something the user said. If nothing the user said answers a question about them, say that you have no record of it.
+        - Use the articles for technical facts, and keep specific details, numbers and code exact.
         - If neither source answers the question, say that you don't know.
         - Keep the answer short and direct.
         """;
@@ -41,12 +45,18 @@ public sealed class ChatService(GoodmemClient client, ILogger<ChatService> logge
         {% endif -%}
         Question: "{{ userQuery }}"
 
-        Retrieved documents:
+        Retrieved content:
         {{ dataSection }}
         """;
 
     public async Task<ChatAnswer> AskAsync(string userId, string question, bool useReranker, CancellationToken cancellationToken)
     {
+        // HttpClient.Timeout stops waiting once the response headers arrive, and the answer is streamed
+        // after them. This deadline covers the whole operation and still honours the caller's token.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(options.Value.Timeout);
+        cancellationToken = deadline.Token;
+
         var stopwatch = Stopwatch.StartNew();
         var recentTurns = await GetRecentTurnsAsync(userId, cancellationToken);
         logger.LogDebug("Loaded {Count} recent turns for {UserId}", recentTurns.Count, userId);
